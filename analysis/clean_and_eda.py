@@ -185,3 +185,27 @@ print("Excluding outliers:\n", monthly_excl)
 
 print("Note: January’s apparent lead is due to bulk orders O0011 (2026-01-28) and O0098 (2026-01-10).")
 print("True peak month is March once outliers are excluded.")
+
+'''FOR THE JSON FILE'''
+import json, os
+
+findings = {
+    "cleaned_total_revenue_inr": round(total_clean, 2),
+    "raw_total_revenue_inr": 99860.20,  # from Part 1
+    "duplicate_reconciliation_delta_inr": round(duplicates_merged['order_value'].sum(), 2),
+    "return_rate_by_payment": {"COD": 44.4, "CARD": 14.7, "UPI": 18.9},
+    "highest_risk_segment": {"payment_method": "COD", "city_tier": 2, "return_rate_pct": 54.5},
+    "true_peak_month": {"month": "2026-03", "revenue_inr": 20318.90},
+    "outlier_inflated_month": {
+        "month": "2026-01",
+        "apparent_revenue_inr": 29582.10,
+        "corrected_revenue_inr": 11637.10
+    }
+}
+
+os.makedirs("narrator", exist_ok=True)
+with open("narrator/findings.json", "w") as f:
+    json.dump(findings, f, indent=2)
+
+print("findings.json exported successfully'")
+
