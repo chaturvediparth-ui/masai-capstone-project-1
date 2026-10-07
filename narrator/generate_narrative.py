@@ -1,7 +1,9 @@
 !mkdir -p narrator
 
-# narrator/generate_narrative.py
 
+
+# narrator/generate_narrative.py
+%%writefile narrator/generate_narrative.py
 from google import genai
 import os
 
@@ -79,24 +81,30 @@ def generate_scr_narrative(findings: dict) -> dict:
 
 def generate_scr_narrative_offline(findings: dict) -> dict:
     """
-    Offline deterministic fallback with SCR enforcement.
-    (Same as Task 2, no changes needed here)
+    Offline deterministic fallback: builds SCR narrative using f-string template.
     """
-    # FIXED TEMPLATE (Task 4 requirement)
-    # No randomness, no paraphrasing — always the same structure.
+
     narrative = f"""
     Situation:
-    Mamaearth recorded a cleaned total revenue of ₹{findings['cleaned_total_revenue_inr']} compared to a raw figure of ₹{findings['raw_total_revenue_inr']}.
+    Mamaearth recorded a cleaned total revenue of ₹{findings['cleaned_total_revenue_inr']:.2f} compared to a raw figure of ₹{findings['raw_total_revenue_inr']:.2f}.
 
     Complication:
-    Duplicate orders reduced revenue by ₹{findings['duplicate_reconciliation_delta_inr']}. COD transactions show a return rate of {findings['return_rate_by_payment']['COD']}%, with Tier-2 COD customers facing the highest risk at {findings['highest_risk_segment']['return_rate_pct']}%.
+    Duplicate orders reduced revenue by ₹{findings['duplicate_reconciliation_delta_inr']:.2f}.
+    COD transactions show a return rate of {findings['return_rate_by_payment']['COD']:.2f}%,
+    Card transactions show a return rate of {findings['return_rate_by_payment']['CARD']:.2f}%,
+    and UPI transactions show a return rate of {findings['return_rate_by_payment']['UPI']:.2f}%.
+    Tier-2 COD customers face the highest risk at {findings['highest_risk_segment']['return_rate_pct']:.2f}%.
 
     Resolution:
-    March 2026 emerged as the true peak month with ₹{findings['true_peak_month']['revenue_inr']} revenue, while January’s apparent ₹{findings['outlier_inflated_month']['apparent_revenue_inr']} was inflated by outliers, corrected to ₹{findings['outlier_inflated_month']['corrected_revenue_inr']}.
+    March 2026 emerged as the true peak month with ₹{findings['true_peak_month']['revenue_inr']:.2f} revenue,
+    while January’s apparent ₹{findings['outlier_inflated_month']['apparent_revenue_inr']:.2f} was inflated by outliers,
+    corrected to ₹{findings['outlier_inflated_month']['corrected_revenue_inr']:.2f}.
     """
+
+
+    
     # ALWAYS return same dict structure (task 4 requirement)
     return {"status": "success", "narrative": narrative.strip(), "tokens": len(narrative.split())}
-
 
 
 import json
@@ -120,3 +128,58 @@ if result["status"] == "success":
     print(result["narrative"])
 else:
     print("Error:", result["message"])
+
+
+# Task 5: Numeric Accuracy Checker
+import re
+
+def check_numeric_accuracy(narrative: str, findings: dict) -> dict:
+    values_to_check = [
+        findings["cleaned_total_revenue_inr"],
+        findings["raw_total_revenue_inr"],
+        findings["duplicate_reconciliation_delta_inr"],
+        findings["return_rate_by_payment"]["COD"],
+        findings["return_rate_by_payment"]["CARD"],
+        findings["return_rate_by_payment"]["UPI"],
+        findings["highest_risk_segment"]["return_rate_pct"],
+        findings["true_peak_month"]["revenue_inr"],
+        findings["outlier_inflated_month"]["apparent_revenue_inr"],
+        findings["outlier_inflated_month"]["corrected_revenue_inr"],
+    ]
+
+    missing = []
+    for val in values_to_check:
+        # Match integer part and optional decimals, with or without ₹ or %
+        val_pattern = r"(₹)?\s*" + re.escape(str(int(val))) + r"(\.\d{1,2})?(%?)"
+        if not re.search(val_pattern, narrative):
+            missing.append(val)
+
+    status = "pass" if not missing else "fail"
+    return {"status": status, "missing": missing, "checked_count": len(values_to_check)}
+
+#EXECUTING THE CHECKER
+check = check_numeric_accuracy(result["narrative"], findings)
+print(check)
+
+
+
+'''AFTER CALLING THE API. THE NARRATIVE TEXT COMES OUT TO BE:"{'status': 'success', 'narrative': 'Situation:\n    Mamaearth recorded a cleaned total revenue of ₹97358.30 compared to a raw figure of ₹99860.20.\n    Complication:\n    Duplicate orders reduced revenue by ₹2501.90.\n    COD transactions show a return rate of 44.40%,\n    Card transactions show a return rate of 14.70%,\n    and UPI transactions show a return rate of 18.90%.\n    Tier-2 COD customers face the highest risk at 54.50%.\n\n\n    Resolution:\n    March 2026 emerged as the true peak month with ₹20318.90 revenue, while January’s apparent ₹29582.10 was inflated by outliers, corrected to ₹11637.10.', 'tokens': 80}
+
+--- Narrative ---
+
+Situation:
+    Mamaearth recorded a cleaned total revenue of ₹97358.30 compared to a raw figure of ₹99860.20.
+    Complication:
+    Duplicate orders reduced revenue by ₹2501.90.
+    COD transactions show a return rate of 44.40%,
+    Card transactions show a return rate of 14.70%,
+    and UPI transactions show a return rate of 18.90%.
+    Tier-2 COD customers face the highest risk at 54.50%.
+
+
+    Resolution:
+    March 2026 emerged as the true peak month with ₹20318.90 revenue, while January’s apparent ₹29582.10 was inflated by outliers, corrected to ₹11637.10.
+"'''
+'''
+AFTER RUNNING THE ACCURACY CHECKER THE RESULT IS:"{'status': 'pass', 'missing': [], 'checked_count': 10}
+"'''
