@@ -159,7 +159,7 @@ def check_numeric_accuracy(narrative: str, findings: dict) -> dict:
 
 #EXECUTING THE CHECKER
 check = check_numeric_accuracy(result["narrative"], findings)
-print(check)
+#print(check)
 
 
 
